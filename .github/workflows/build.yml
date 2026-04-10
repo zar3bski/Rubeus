@@ -1,0 +1,41 @@
+name: Build
+
+on:
+    push:
+        branches: [master]
+    pull_request:
+        branches: [master]
+
+jobs:
+    build:
+        runs-on: windows-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Verify .NET Framework 4.8 is present
+              run: |
+                  $release = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full").Release
+                  Write-Host ".NET Framework release: $release"
+                  if ($release -lt 528040) { throw ".NET Framework 4.8 not found" }
+              shell: pwsh
+
+            - name: Add MSBuild to PATH
+              uses: microsoft/setup-msbuild@v2
+
+            - name: Restore NuGet packages
+              run: nuget restore Rubeus.sln
+
+            - name: Build
+              run: msbuild Rubeus.sln /p:Configuration=Release /p:Platform="Any CPU" /p:TargetFrameworkVersion=v4.8
+
+            #- name: List artifacts
+            #  shell: pwsh
+            #  run: Get-ChildItem -Recursive
+
+            - name: Upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: Rubeus
+                  path: Rubeus/bin/Release/Rubeus.exe
